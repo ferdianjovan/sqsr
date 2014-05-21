@@ -2,6 +2,17 @@ from morse.builder import *
 from math import pi
 
 # First Human
+lenka = Human()
+#lenka.disable_keyboard_control()
+lenka.use_world_camera()
+lenka.properties(Label = "Lenka")
+lenka.translate(x=-1.0,y=-3.0)
+lenka.rotate(z=1.6)
+lpose = Pose()
+lenka.append(lpose)
+lpose.add_stream('ros')
+
+# Second Human
 ferdi = Human()
 ferdi.disable_keyboard_control()
 ferdi.use_world_camera()
@@ -13,6 +24,7 @@ ferdi.append(fpose)
 #fmotion.add_stream('ros')
 fpose.add_stream('ros')
 
+#Third Human
 marco = Human()
 marco.disable_keyboard_control()
 marco.use_world_camera()
@@ -25,18 +37,17 @@ marco.append(mpose)
 mmotion.add_stream('ros')
 mpose.add_stream('ros')
 
-lenka = Human()
-#lenka.disable_keyboard_control()
-lenka.use_world_camera()
-lenka.translate(x=-1.0,y=-3.0)
-lenka.rotate(z=1.6)
-lpose = Pose()
-lenka.append(lpose)
-lpose.add_stream('ros')
+# Laser sensor
+laser = Sick()
+laser.properties(laser_range=1.0, scan_window=270.0, Visible_arc=True, resolution=10)
+laser.translate(0.0,0.0,0.5)
+#laser.frequency(1)
+laser.rotate(z=3.2)
+marco.append(laser)
+laser.add_interface('ros')
 
 #ferdi.add_service('ros')
 #ferdi.add_stream('ros')
-
 
 cornflakes = PassiveObject("props/kitchen_objects", "Cornflakes")
 cornflakes.setgraspable()
