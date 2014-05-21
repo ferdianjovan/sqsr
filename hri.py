@@ -1,11 +1,9 @@
 from morse.builder import *
-from math import pi
 
 # First Human
 lenka = Human()
 #lenka.disable_keyboard_control()
 lenka.use_world_camera()
-lenka.properties(Label = "Lenka")
 lenka.translate(x=-1.0,y=-3.0)
 lenka.rotate(z=1.6)
 lpose = Pose()
@@ -19,9 +17,6 @@ ferdi.use_world_camera()
 ferdi.translate(x=-2.5,y=-0.3)
 fpose = Pose()
 ferdi.append(fpose)
-#fmotion = MotionVW()
-#ferdi.append(fmotion)
-#fmotion.add_stream('ros')
 fpose.add_stream('ros')
 
 #Third Human
@@ -45,9 +40,6 @@ laser.translate(0.0,0.0,0.5)
 laser.rotate(z=3.2)
 marco.append(laser)
 laser.add_interface('ros')
-
-#ferdi.add_service('ros')
-#ferdi.add_stream('ros')
 
 cornflakes = PassiveObject("props/kitchen_objects", "Cornflakes")
 cornflakes.setgraspable()
@@ -80,6 +72,3 @@ cup.properties(Label = "Cup")
 cup.translate(x=1, y=-2.5, z=0.91)
 
 env = Environment('apartment')
-
-# move human = id1 ferdi move [x,y]
-# How to make it work in ROS?
