@@ -1,74 +1,24 @@
 #include "ros/ros.h"
-#include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Twist.h"
-#include "geometry_msgs/Pose.h"
 #include "sensor_msgs/LaserScan.h"
+#include <vector>
 
 using namespace std;
+enum human_state {approaching, talking, goingaway};
 
 // ROS Publisher
 ros::Publisher pub;
-// mpos = marco's position, the guy who initially stands near the right table
-geometry_msgs::Pose mpos;
-// a flag to mark whether the previous movement was stopped by an occlusion.
-bool past_move_flag;
+// Laser information
+int laser_range_size;
+float laser_range_max;
+vector<float> laser_ranges(28);
 
-// The following three functions show the position for each human.
-// Positions for the third guy who stands near the couch
-void fpose(const geometry_msgs::PoseStamped::ConstPtr msg)
-{
-    geometry_msgs::Pose pos = msg->pose;
-    ROS_INFO("Ferdi x: %f, y: %f, w: %f", pos.position.x, pos.position.y, pos.orientation.w);
-}
-
-// Positions for the second guy
-void mpose(const geometry_msgs::PoseStamped::ConstPtr msg)
-{
-    mpos = msg->pose;
-    ROS_INFO("Marco x: %f, y: %f, w: %f", mpos.position.x, mpos.position.y, mpos.orientation.w);
-}
-
-// Positions for the first guy
-void lpose(const geometry_msgs::PoseStamped::ConstPtr msg)
-{
-    geometry_msgs::Pose lpos = msg->pose;
-    ROS_INFO("Lenka x: %f, y: %f, w: %f", lpos.position.x, lpos.position.y, lpos.orientation.w);
-}
-
-// ros::Duration(0.25).sleep(); // to sleep 0.25 seconds
-// A function to update the movement of the second guy based on laser sensor
+// A function to retrieve laser information
 void laser(const sensor_msgs::LaserScan::ConstPtr msg)
 {
-    bool move_flag;
-    geometry_msgs::Twist twist;
-
-    // Detecting whether there is an object within the half of the maximum range of the laser
-    for(int i=0;i < msg->ranges.size(); i++)
-        if(msg->ranges[i] <= (msg->range_max)/1.2)
-        {
-          move_flag = false;
-          break;
-        }
-        else move_flag = true;
-
-    // Updating the movement of the second guy
-    // if the position of the second guy is near to the first guy. Move backward
-    if(mpos.position.x <= -1.9)
-        twist.linear.x = -0.5;
-    // if the previous movement was stop, and now there is no occlusion and
-    // the position of the second guy is not really near to the first guy, then move forward
-    else if(mpos.position.x >= 1.0 ||
-            (mpos.position.x > -1.9 && mpos.position.x < 1.0 && move_flag && !past_move_flag))
-        twist.linear.x = 0.5;
-    // If there is an occlusion, stop.
-    else if(!move_flag)
-        twist.linear.x = 0.0;
-
-    // set the current flag as the old flag
-    past_move_flag = move_flag;
-
-    // publish the movement
-    pub.publish(twist);
+    laser_range_size = msg->ranges.size();
+    laser_range_max = msg->range_max;
+    laser_ranges = msg->ranges;
 }
 
 int main(int argc, char **argv)
@@ -79,13 +29,63 @@ int main(int argc, char **argv)
 
     // publishing topic for the second guy movement
     pub = n.advertise<geometry_msgs::Twist>("marco/mmotion",1000);
-    // subscribing to three human positions
-    ros::Subscriber subfpose = n.subscribe("ferdi/fpose",1000,fpose);
-    ros::Subscriber submpose = n.subscribe("marco/mpose",1000,mpose);
-    ros::Subscriber sublpose = n.subscribe("lenka/lpose",1000,lpose);
     // subscribing to laser information
     ros::Subscriber sublaser = n.subscribe("marco/laser",1000,laser);
-    ros::spin();
+
+    // Data for motion
+    geometry_msgs::Twist twist;
+    // Initial Marco's state
+    human_state mstate = approaching, prev_mstate = approaching;
+    // talking status
+    bool talking_flag = false;
+
+    while(ros::ok())
+    {
+        int counter = 0;
+        // Detecting whether there is an object within the area of the laser
+        for(int i=0;i < laser_range_size; i++)
+            if(laser_ranges[i] <= laser_range_max/1.8 && !talking_flag)
+            {
+                mstate = talking;
+                break;
+            }
+            else if(laser_ranges[i] > laser_range_max/1.8)
+                counter++;
+
+        if(counter == laser_range_size) talking_flag = false;
+
+        // Marco's movement based on his current and previous state
+        switch(mstate)
+        {
+            case approaching:
+                prev_mstate = mstate;
+                twist.linear.x = 0.5;
+                ROS_INFO("Marco is approaching");
+                pub.publish(twist);
+                ros::spinOnce();
+                break;
+            case talking:
+                twist.linear.x = 0.0;
+                if(prev_mstate == approaching)
+                    mstate = goingaway;
+                else
+                    mstate = approaching;
+                talking_flag = true;
+                ROS_INFO("Marco is talking");
+                pub.publish(twist);
+                ros::spinOnce();
+                ros::Duration(5).sleep();
+                break;
+            default:
+                prev_mstate = mstate;
+                twist.linear.x = -0.5;
+                ROS_INFO("Marco is going away");
+                pub.publish(twist);
+                ros::spinOnce();
+                break;
+
+        }
+    }
 
     return 0;
 }
