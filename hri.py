@@ -18,6 +18,7 @@ ferdi.translate(x=-2.5,y=-0.3)
 fpose = Pose()
 ferdi.append(fpose)
 fpose.add_stream('ros')
+ferdi.add_service('ros')
 
 #Third Human
 marco = Human()
@@ -32,9 +33,16 @@ marco.append(mpose)
 mmotion.add_stream('ros')
 mpose.add_stream('ros')
 
+# Pioneer 3DX
+pioneer = Pioneer3DX()
+pioneer.translate(-1,2,0)
+piomotion = MotionVWDiff()
+pioneer.append(piomotion)
+piomotion.add_interface('ros')
+
 # Laser sensor
 laser = Sick()
-laser.properties(laser_range=1.0, scan_window=270.0, Visible_arc=True, resolution=10)
+laser.properties(laser_range=0.7, scan_window=360.0, Visible_arc=False, resolution=10)
 laser.translate(0.0,0.0,0.5)
 #laser.frequency(1)
 laser.rotate(z=3.2)

@@ -4,21 +4,56 @@
 #include <vector>
 
 using namespace std;
-enum human_state {approaching, talking, goingaway};
+enum human_state {approaching, talking, goingaway, ready};
 
 // ROS Publisher
 ros::Publisher pub;
-// Laser information
-int laser_range_size;
-float laser_range_max;
-vector<float> laser_ranges(28);
+// Initial Marco's state
+human_state mstate = approaching;
 
-// A function to retrieve laser information
+// Movement function based on laser information
 void laser(const sensor_msgs::LaserScan::ConstPtr msg)
 {
-    laser_range_size = msg->ranges.size();
-    laser_range_max = msg->range_max;
-    laser_ranges = msg->ranges;
+    // Data for motion
+    geometry_msgs::Twist twist;
+    bool front_obstacle = false, back_obstacle = false;
+
+    // Detecting whether there is an object within the area of the laser
+    for(int i=0;i < msg->ranges.size(); i++)
+        if(msg->ranges[i] <= (msg->range_max - 0.1))
+        {
+            if(i < 6 || i > (msg->ranges.size() - 6))
+                front_obstacle = true;
+            else
+                back_obstacle = true;
+        }
+
+    // Marco's movement based on the current state and where the obstacle is
+    switch(mstate)
+    {
+        case approaching:
+            twist.linear.x = 0.5;
+            pub.publish(twist);
+            if(front_obstacle)
+                mstate = talking;
+            break;
+        case talking:
+            twist.linear.x = 0.0;
+            pub.publish(twist);
+            mstate = goingaway;
+            ros::Duration(1).sleep();
+            break;
+        default:
+            if(back_obstacle && !front_obstacle)
+                mstate = approaching;
+            else if(back_obstacle && front_obstacle)
+                mstate = talking;
+            else
+            {
+                twist.linear.x = -0.5;
+                pub.publish(twist);
+            }
+    }
 }
 
 int main(int argc, char **argv)
@@ -32,60 +67,7 @@ int main(int argc, char **argv)
     // subscribing to laser information
     ros::Subscriber sublaser = n.subscribe("marco/laser",1000,laser);
 
-    // Data for motion
-    geometry_msgs::Twist twist;
-    // Initial Marco's state
-    human_state mstate = approaching, prev_mstate = approaching;
-    // talking status
-    bool talking_flag = false;
-
-    while(ros::ok())
-    {
-        int counter = 0;
-        // Detecting whether there is an object within the area of the laser
-        for(int i=0;i < laser_range_size; i++)
-            if(laser_ranges[i] <= laser_range_max/1.8 && !talking_flag)
-            {
-                mstate = talking;
-                break;
-            }
-            else if(laser_ranges[i] > laser_range_max/1.8)
-                counter++;
-
-        if(counter == laser_range_size) talking_flag = false;
-
-        // Marco's movement based on his current and previous state
-        switch(mstate)
-        {
-            case approaching:
-                prev_mstate = mstate;
-                twist.linear.x = 0.5;
-                ROS_INFO("Marco is approaching");
-                pub.publish(twist);
-                ros::spinOnce();
-                break;
-            case talking:
-                twist.linear.x = 0.0;
-                if(prev_mstate == approaching)
-                    mstate = goingaway;
-                else
-                    mstate = approaching;
-                talking_flag = true;
-                ROS_INFO("Marco is talking");
-                pub.publish(twist);
-                ros::spinOnce();
-                ros::Duration(5).sleep();
-                break;
-            default:
-                prev_mstate = mstate;
-                twist.linear.x = -0.5;
-                ROS_INFO("Marco is going away");
-                pub.publish(twist);
-                ros::spinOnce();
-                break;
-
-        }
-    }
+    ros::spin();
 
     return 0;
 }
