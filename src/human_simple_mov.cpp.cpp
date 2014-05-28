@@ -1,9 +1,7 @@
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
 #include "sensor_msgs/LaserScan.h"
-#include <vector>
 
-using namespace std;
 enum human_state {approaching, talking, goingaway, ready};
 
 // ROS Publisher
@@ -59,7 +57,7 @@ void laser(const sensor_msgs::LaserScan::ConstPtr msg)
 int main(int argc, char **argv)
 {
     // ros initialization
-    ros::init(argc,argv,"HumanAI");
+    ros::init(argc,argv,"human_movement");
     ros::NodeHandle n;
 
     // publishing topic for the second guy movement
